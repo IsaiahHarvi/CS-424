@@ -1,3 +1,7 @@
+# Program 2
+# 6/28/2024
+# Isaiah Harville
+
 using Printf
 using Statistics
 
@@ -34,10 +38,11 @@ end
 
 function read_scores(line::String, expected_count::Int)
     scores = split(line)
-    if length(scores) != expected_count
-        println("Warning: Expected $expected_count scores, but got $(length(scores))")
+    actual_count = min(length(scores), expected_count)
+    if actual_count != expected_count
+        println("Warning: Expected $expected_count scores, but got $actual_count")
     end
-    return parse.(Int, scores[1:expected_count])
+    return parse.(Int, scores[1:actual_count])
 end
 
 function collect_data(file_name::String, assignment_len::Int, test_len::Int, test_weight::Int)
@@ -56,12 +61,6 @@ function collect_data(file_name::String, assignment_len::Int, test_len::Int, tes
         end
 
         name_parts = split(lines[i])
-        if length(name_parts) < 2
-            println("Invalid student name on line $i: ", lines[i])
-            i += 1
-            continue
-        end
-
         first_name = name_parts[1]
         last_name = name_parts[2]
 
@@ -111,7 +110,8 @@ end
 function main()
     file_name, assignment_len, test_len, test_weight = get_inputs()
     students, overall_avg = collect_data(file_name, assignment_len, test_len, test_weight)
-    print_data(students, test_weight, assignment_len, test_len, overall_avg)
+    print_data(sort(students, by = s -> (s.last_name, s.first_name)), test_weight, assignment_len, test_len, overall_avg)
+    print_data(sort(students, by = s -> -s.ovrl_avg), test_weight, assignment_len, test_len, overall_avg)
 end
 
 main()
