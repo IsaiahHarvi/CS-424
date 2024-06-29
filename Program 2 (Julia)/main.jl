@@ -1,10 +1,4 @@
-# CS 424: Programming Assignment 1
-# Author: Isaiah Harville
-# Date:   6/14/2024
-# Tested on: Windows 10
-
 using Printf
-using FileIO
 using Statistics
 
 struct Student
@@ -12,14 +6,14 @@ struct Student
     last_name::String
     test_grades::Vector{Int}
     homework_grades::Vector{Int}
-    test_avg::Int
-    hw_avg::Int
-    ovrl_avg::Int
+    test_avg::Float64
+    hw_avg::Float64
+    ovrl_avg::Float64
 end
 
 function get_inputs()
     println("Input File Name: ")
-    file_name = readline()
+    file_name = String(strip(readline()))
     if !occursin(".txt", file_name)
         file_name *= ".txt"
     end
@@ -38,66 +32,66 @@ function get_inputs()
     return file_name, assignment_len, test_len, test_weight
 end
 
-function read_scores(scores::Vector{String}, given_len::Int)
-    if given_len > length(scores)
-        @warn "Given length ($given_len) is longer than actual length ($(length(scores)))"
-        given_len = length(scores)
+function read_scores(line::String, expected_count::Int)
+    scores = split(line)
+    if length(scores) != expected_count
+        println("Warning: Expected $expected_count scores, but got $(length(scores))")
     end
-
-    retyped_scores = Int[]
-    for i in 1:given_len
-        try
-            push!(retyped_scores, parse(Int, scores[i]))
-        catch e
-            println(e)
-        end
-    end
-    return retyped_scores
+    return parse.(Int, scores[1:expected_count])
 end
 
 function collect_data(file_name::String, assignment_len::Int, test_len::Int, test_weight::Int)
     students = Student[]
-    overall_sum = 0
+    overall_sum = 0.0
 
     file = open(file_name, "r")
     lines = readlines(file)
     close(file)
 
-    line_num = 0
-    current = Student("", "", Int[], Int[], 0, 0, 0)
-
-    while line_num < length(lines)
-        partitioned_line = split(lines[line_num])
-
-        if line_num % 3 == 0
-            current = Student(partitioned_line[1], partitioned_line[2], Int[], Int[], 0, 0, 0)
-        elseif line_num % 3 == 1
-            current.test_grades = read_scores(partitioned_line, test_len)
-        elseif line_num % 3 == 2
-            current.homework_grades = read_scores(partitioned_line, assignment_len)
-            current.test_avg = weighted_average(current.test_grades, test_weight)
-            current.hw_avg = weighted_average(current.homework_grades, 100 - test_weight)
-            current.ovrl_avg = current.test_avg + current.hw_avg
-            overall_sum += current.ovrl_avg
-            push!(students, current)
+    i = 1
+    while i <= length(lines)
+        if strip(lines[i]) == ""
+            i += 1
+            continue
         end
-        line_num += 1
+
+        name_parts = split(lines[i])
+        if length(name_parts) < 2
+            println("Invalid student name on line $i: ", lines[i])
+            i += 1
+            continue
+        end
+
+        first_name = name_parts[1]
+        last_name = name_parts[2]
+
+        test_grades = read_scores(lines[i + 1], test_len)
+        homework_grades = read_scores(lines[i + 2], assignment_len)
+
+        test_avg = mean(test_grades) * test_weight / 100
+        hw_avg = mean(homework_grades) * (100 - test_weight) / 100
+        ovrl_avg = test_avg + hw_avg
+
+        overall_sum += ovrl_avg
+        push!(students, Student(first_name, last_name, test_grades, homework_grades, test_avg, hw_avg, ovrl_avg))
+
+        i += 3
     end
 
-    return students, overall_sum
+    return students, overall_sum / length(students)
 end
 
-function print_data(students::Vector{Student}, test_weight::Int, hw_len::Int, test_len::Int, overall_sum::Int)
+function print_data(students::Vector{Student}, test_weight::Int, hw_len::Int, test_len::Int, overall_avg::Float64)
     println()
     println("GRADE REPORT --- $(length(students)) STUDENTS FOUND IN FILE")
     println("TEST WEIGHT: $test_weight%")
     println("HOMEWORK WEIGHT: $(100 - test_weight)%")
-    println("OVERALL AVERAGE: $(overall_sum ÷ length(students))%\n")
+    println("OVERALL AVERAGE: $overall_avg%\n")
 
     println("        STUDENT NAME           :       TESTS     HOMEWORKS      OVERALL")
     println("----------------------------------------------------------------------")
     for student in students
-        @printf("\n\t%s, %-15s : %8d (%d) %6d (%d) %10d",
+        @printf("\n\t%s, %-15s : %8.2f (%d) %6.2f (%d) %10.2f",
             student.last_name, student.first_name,
             student.test_avg, length(student.test_grades),
             student.hw_avg, length(student.homework_grades),
@@ -114,16 +108,10 @@ function print_data(students::Vector{Student}, test_weight::Int, hw_len::Int, te
     println()
 end
 
-function weighted_average(scores::Vector{Int}, weight::Int)
-    sum = sum(scores)
-    average = sum ÷ length(scores)
-    return average * weight ÷ 100
-end
-
 function main()
     file_name, assignment_len, test_len, test_weight = get_inputs()
-    students, overall_sum = collect_data(file_name, assignment_len, test_len, test_weight)
-    print_data(students, test_weight, assignment_len, test_len, overall_sum)
+    students, overall_avg = collect_data(file_name, assignment_len, test_len, test_weight)
+    print_data(students, test_weight, assignment_len, test_len, overall_avg)
 end
 
 main()
